@@ -5,12 +5,12 @@
 ### COS 424 Final Project
 
 
-### Goals:
+#### Goals:
 
 
-### Method:
+#### Method:
 
 
 
-### Results (Could store here temporarily)
+#### Results (Could store here temporarily)
 
