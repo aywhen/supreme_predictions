@@ -15,9 +15,10 @@ bg_variables = [
     u'caseSourceState', u'lcDisagreement', u'certReason',
     u'lcDisposition', u'lcDispositionDirection',
 ]
-chrono_variables = [
-    u'dateDecision', u'decisionType', u'term',
-    u'naturalCourt', u'chief', u'dateArgument', u'dateRearg']
+chrono_include = [u'naturalCourt', u'chief']
+chrono_donotinclude = [u'dateDecision', u'decisionType', u'term',
+                       u'dateArgument', u'dateRearg']
+chrono_variables = chrono_include + chrono_donotinclude
 substantive_variables = [
     u'issue', u'issueArea', u'decisionDirection',
     u'decisionDirectionDissent', u'authorityDecision1',
@@ -29,7 +30,7 @@ voting_variables = [u'voteUnclear', u'majOpinWriter', u'majOpinAssigner',
                     u'splitVote', u'majVotes', u'minVotes']
 
 # column names for inclusion in train/test
-feature_cols = substantive_variables + bg_variables
+feature_cols = substantive_variables + bg_variables + chrono_include
 label_cols = ['partyWinning'] #outcome_variables
 id_cols = ['voteId']
 
@@ -39,7 +40,7 @@ cutoff_date = datetime(2015, 1, 1) # anything after this date is in test set
 # read the file in and construct train/test sets
 df = pd.read_csv('../data/SCDB_2016_01_caseCentered_Citation.csv',
                  parse_dates=['dateDecision'])
-df = df[pd.notnull(df.partyWinning)]
+df = df[pd.notnull(df.partyWinning)] # only include rows with valid partyWinning
 train = df[df.dateDecision < cutoff_date]
 test = df[df.dateDecision >= cutoff_date]
 
