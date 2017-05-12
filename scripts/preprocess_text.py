@@ -1,11 +1,26 @@
 import nltk, re
 from nltk import word_tokenize, ngrams
 from nltk.corpus import stopwords
+import sys
+import os
+import time
+import getopt
+import pandas as pd
+import codecs
+import numpy
+import csv
+
+
 chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';', 
 '?', '*', '\\', '\/', '~', '_','|','=','+','^',':','\"','\'','@','-']
 porter = nltk.PorterStemmer() # also lancaster stemmer
 wnl = nltk.WordNetLemmatizer()
 stopWords = stopwords.words("english")
+word_count_threshold = 2# 5
+outputf = 'out'
+data_dir = ''
+vocabf = ''
+
 
 def stem(word):
    regexp = r'^(.*?)(ing|ly|ed|ious|ies|ive|es|s|ment)?$'
@@ -13,7 +28,10 @@ def stem(word):
    return stem
 
 def tokenize_text(line):
-    raw = line.decode('latin1')
+    if type(line) == float:
+        raw = ''
+    else:
+        raw = line.decode('latin1')
     # raw = ' '.join(raw.rsplit()[1:-1])
     # remove noisy characters; tokenize
     # convert some punctuation to periods for marking negation
@@ -34,8 +52,8 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
     if train == True:
         words = {}
 
-    for row in traintxt:
-        classes.append(row[-1])
+    for row in traintxt.values:
+        classes.append('%.0f' % row[-1])
         samples.append(row[0])
         tokens = tokenize_text(row[1])
 
@@ -57,12 +75,12 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
         return(docs, classes, samples)
 
 def wordcount_filter(words, num=5):
-   keepset = []
-   for k in words.keys():
-       if(words[k] > num):
-           keepset.append(k)
-   print "Vocab length:", len(keepset)
-   return(sorted(set(keepset)))
+    keepset = []
+    for k in words.keys():
+        if(words[k] > num):
+            keepset.append(k)
+    print ("Vocab length:", len(keepset))
+    return(sorted(set(keepset)))
 
 
 def find_wordcounts(docs, vocab):
@@ -79,23 +97,24 @@ def find_wordcounts(docs, vocab):
           if index_t>=0:
              bagofwords[i,index_t]=bagofwords[i,index_t]+1
 
-   print "Finished find_wordcounts for:", len(docs), "docs"
+   print( "Finished find_wordcounts for:", len(docs), "docs")
    return(bagofwords)
 
-def construct_docs(X, Y):
+def construct_docs(X_name, Y_name):
     # construct appropriately formatted docs from X & Y
     # proper format is sample text-string class
-    train = pd.merge(p.trainX_text,
-                       p.trainY,
-                       left_on='voteId',
-                       right_on='voteId')
+    X = pd.read_csv(X_name)
+    Y = pd.read_csv(Y_name)
+    train = pd.merge(X, Y, left_on='voteId', right_on='voteId')
     text = train.lawMinor.str.cat(' ' + train.caseName + ' ' + train.chief)
     return pd.concat([train.voteId, text, train.partyWinning], axis=1)
 
-def get_vocab(vocabf, traintxt):
+def get_vocab(vocabf, traintxt, path=None):
+    path = path or data_dir
+    global word_count_threshold
+
     # Tokenize training data (if training vocab doesn't already exist):
-    if (not vocabf):
-        word_count_threshold = 5
+    if vocabf == '':
         (docs, classes, samples, words) = tokenize_corpus(traintxt, train=True)
         vocab = wordcount_filter(words, num=word_count_threshold)
         # Write new vocab file
@@ -104,87 +123,89 @@ def get_vocab(vocabf, traintxt):
         outfile.write("\n".join(vocab))
         outfile.close()
     else:
-        word_count_threshold = 0
         (docs, classes, samples) = tokenize_corpus(traintxt, train=False)
         vocabfile = open(path+"/"+vocabf, 'r')
         vocab = [line.rstrip('\n') for line in vocabfile]
         vocabfile.close()
 
-    print 'Vocabulary file:', path+"/"+vocabf 
+    print ('Vocabulary file:', path+"/"+vocabf)
     return (docs, classes, samples, vocab)
 
-# fix this.
-def main(argv):
-    start_time = time.time()
+def get_corpus(path=None):
+    path = path or data_dir
+    trainX = path+"/trainX_text.csv"
+    trainY = path+"/trainY.csv"
+    testX = path+"/testX_text.csv"
+    testY = path+"/testY.csv"
+    print ('Path:', path)
+    print ('Training data:', trainX, trainY)
+    print ('Testing data:', testX, testY)
 
-    path = ''
-    outputf = 'out'
-    vocabf = ''
+    train = construct_docs(trainX, trainY)
+    test = construct_docs(testX, testY)
+    return train, test
 
+def write_csv(bow, name, path=None):
+    path = path or data_dir
+    with open(path+"/"+outputf+name+str(word_count_threshold)+".csv", "wb") as f:
+        writer = csv.writer(f)
+        writer.writerows(bow)
+
+def write_txt(rows, name, path=None):
+    path = path or data_dir
+    outfile= open(path+"/"+outputf+name+str(word_count_threshold)+".txt", 'w')
+    outfile.write("\n".join(rows))
+    outfile.close()
+
+def read_args(argv):
+    global outputf, data_dir, vocabf
     try:
         opts, args = getopt.getopt(argv,"p:o:v:",["path=","ofile=","vocabfile="])
     except getopt.GetoptError:
-        print 'Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>'
+        print ('Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>'
+            print ('Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>')
             sys.exit()
         elif opt in ("-p", "--path"):
-            path = arg
+            data_dir = arg
         elif opt in ("-o", "--ofile"):
             outputf = arg
         elif opt in ("-v", "--vocabfile"):
             vocabf = arg
 
-    trainX = path+"/trainX_text.csv"
-    trainY = path+"/trainY.csv"
-    testX = path+"/testX_text.csv"
-    testY = path+"/testY.csv"
-    print 'Path:', path
-    print 'Training data:', trainX, trainY
-    print 'Testing data:', testX, testY
 
-    train = construct_docs(trainX, trainY)
-    test = construct_docs(testX, testY)
-    (docs, classes, samples, vocab) = get_vocab(vocabf)
+# fix this.
+def main(argv):
+    start_time = time.time()
+    read_args(argv)
+
+    (train, test) = get_corpus()
+    (docs, classes, samples, vocab) = get_vocab(vocabf, train)
 
     # Get bag of words:
     bow = find_wordcounts(docs, vocab)
     # Check: sum over docs to check if any zero word counts
-    print "Doc with smallest number of words in vocab has:", min(numpy.sum(bow, axis=1))
+    print ("Doc with smallest number of words in vocab has:", min(numpy.sum(bow, axis=1)))
 
     # Write bow file
-    with open(path+"/"+outputf+"_bag_of_words_"+str(word_count_threshold)+".csv", "wb") as f:
-        writer = csv.writer(f)
-        writer.writerows(bow)
+    write_csv(bow, '_train_bow')
 
     # Process test.txt / write bow
-    (docstest, classestest, samplestest) = tokenize_corpus(testtxt, train=False)
+    (docstest, classestest, samplestest) = tokenize_corpus(test, train=False)
     testbow = find_wordcounts(docstest, vocab)
-    with open(path+"/"+outputf+"_testX"+str(word_count_threshold)+".csv", "wb") as f:
-        writer = csv.writer(f)
-        writer.writerows(testbow)
+    write_csv(testbow, '_test_bow')
 
-    # Write classes
-    outfile= open(path+"/"+outputf+"_classes_"+str(word_count_threshold)+".txt", 'w')
-    outfile.write("\n".join(classes))
-    outfile.close()
+    # Write classes, samples
+    write_txt(classes, '_classes_')
+    write_txt(classestest, '_testY')
+    write_txt(samples, '_samples_class_')
 
-    # Write test.txt classes
-    outfile = open(path+"/"+outputf+"_testY"+str(word_count_threshold)+".txt", "w")
-    outfile.write("\n".join(classestest))
-    outfile.close()
-
-    # Write samples
-    outfile= open(path+"/"+outputf+"_samples_class_"+str(word_count_threshold)+".txt", 'w')
-    outfile.write("\n".join(samples))
-    outfile.close()
-
-    print 'Output files:', path+"/"+outputf+"*"
+    print ('Output files:', data_dir+"/"+outputf+"*")
 
     # Runtime
-    print 'Runtime:', str(time.time() - start_time)
+    print ('Runtime:', str(time.time() - start_time))
 
 if __name__ == "__main__":
     main(sys.argv[1:])
