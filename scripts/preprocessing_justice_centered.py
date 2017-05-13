@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 
 
-
+single_prediction = False
 
 
 # column names by category
@@ -44,6 +44,8 @@ voting_variables = [u'voteUnclear', u'majOpinWriter', u'majOpinAssigner',
 # column names for inclusion in train/test
 feature_cols = substantive_variables + bg_variables + chrono_include
 label_cols = outcome_variables + voting_variables
+if single_prediction:
+    label_cols = ['vote']
 id_cols = ['voteId']
 
 # other vars
