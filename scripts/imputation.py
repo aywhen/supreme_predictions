@@ -22,3 +22,6 @@ def fillMissing(inputcsv, outputcsv):
 # Usage:
 fillMissing('../data/testX_num.csv', '../data/testX_num_output.csv')
 filleddf = pd.read_csv('../data/testX_num_output.csv', low_memory=False)
+
+fillMissing('../data/trainX_num.csv', '../data/trainX_num_output.csv')
+filleddf = pd.read_csv('../data/trainX_num_output.csv', low_memory=False)
