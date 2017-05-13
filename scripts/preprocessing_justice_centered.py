@@ -12,6 +12,7 @@ id_variables = [
     u'caseId', u'docketId', u'caseIssuesId', u'voteId',
     u'usCite', u'sctCite', u'ledCite', u'lexisCite',
     u'docket']
+    
 bg_variables = [
     u'caseName', u'petitioner', u'petitionerState',
     u'respondent', u'respondentState', u'jurisdiction',
@@ -20,25 +21,29 @@ bg_variables = [
     u'caseSourceState', u'lcDisagreement', u'certReason',
     u'lcDisposition', u'lcDispositionDirection',
 ]
+
 chrono_include = [u'naturalCourt', u'chief']
 chrono_donotinclude = [u'dateDecision', u'decisionType', u'term',
                        u'dateArgument', u'dateRearg']
 chrono_variables = chrono_include + chrono_donotinclude
+
 substantive_variables = [
     u'issue', u'issueArea', u'decisionDirection',
     u'decisionDirectionDissent', u'authorityDecision1',
     u'authorityDecision2', u'lawType', u'lawSupp', u'lawMinor']
+
 outcome_variables = [
     u'declarationUncon', u'caseDisposition',
     u'caseDispositionUnusual', u'partyWinning', u'precedentAlteration',  
     u'firstAgreement', u'secondAgreement']
+
 voting_variables = [u'voteUnclear', u'majOpinWriter', u'majOpinAssigner',
                     u'splitVote', u'majVotes', u'minVotes',  u'vote', u'opinion',
                     u'direction', u'majority']
 
 # column names for inclusion in train/test
 feature_cols = substantive_variables + bg_variables + chrono_include
-label_cols = ['partyWinning'] #outcome_variables
+label_cols = outcome_variables + voting_variables
 id_cols = ['voteId']
 
 # other vars
