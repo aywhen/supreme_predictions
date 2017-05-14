@@ -23,7 +23,7 @@ bg_variables = [
 ]
 
 chrono_include = [u'naturalCourt', u'chief']
-chrono_donotinclude = [u'dateDecision', u'decisionType', u'term',
+chrono_donotinclude = [u'dateDecision', u'term',
                        u'dateArgument', u'dateRearg']
 chrono_variables = chrono_include + chrono_donotinclude
 
@@ -33,7 +33,7 @@ substantive_variables = [
     u'authorityDecision2', u'lawType', u'lawSupp', u'lawMinor']
 
 outcome_variables = [
-    u'declarationUncon', u'caseDisposition',
+    u'decisionType', u'declarationUncon', u'caseDisposition',
     u'caseDispositionUnusual', u'partyWinning', u'precedentAlteration',  
     u'firstAgreement', u'secondAgreement']
 
