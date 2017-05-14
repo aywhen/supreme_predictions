@@ -46,7 +46,7 @@ feature_cols = substantive_variables + bg_variables + chrono_include
 label_cols = outcome_variables + voting_variables
 if single_prediction:
     label_cols = ['vote']
-id_cols = ['voteId']
+# id_variables = ['voteId']
 
 # other vars
 cutoff_date = datetime(2015, 1, 1) # anything after this date is in test set
@@ -58,13 +58,14 @@ df = df[pd.notnull(df.partyWinning)] # only include rows with valid partyWinning
 train = df[df.dateDecision < cutoff_date]
 test = df[df.dateDecision >= cutoff_date]
 
-trainX = train[id_cols + feature_cols]
-trainY = train[id_cols + label_cols]
-testX = test[id_cols + feature_cols]
-testY = test[id_cols + label_cols]
+trainX = train[id_variables + feature_cols]
+trainY = train[id_variables + label_cols]
+testX = test[id_variables + feature_cols]
+testY = test[id_variables + label_cols]
 
 # write to files
 trainX.to_csv('../data/trainX_justice.csv', index=False)
 trainY.to_csv('../data/trainY_justice.csv', index=False)
 testX.to_csv('../data/testX_justice.csv', index=False)
 testY.to_csv('../data/testY_justice.csv', index=False)
+
