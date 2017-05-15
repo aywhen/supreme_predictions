@@ -1,3 +1,11 @@
+"""
+BEFORE you run this, download bulk data from CourtListener.com.
+Instructions here:
+https://github.com/hinthornw/supreme_predictions/wiki/Text-Data
+
+Then, make sure that you are running mongod (default settings).
+"""
+
 import requests
 from BeautifulSoup import BeautifulSoup
 import pandas as pd
@@ -176,10 +184,6 @@ def set_indices():
 def setup_courtlistener():
     """
     This should only be run ONCE on any client.
-
-    BEFORE you run this, download bulk data from CourtListener.com.
-    Instructions here:
-    https://github.com/hinthornw/supreme_predictions/wiki/Text-Data
     """
     print 'Time to pop the cherry.'
     load_all()
