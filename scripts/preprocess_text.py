@@ -18,7 +18,7 @@ chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';',
 porter = nltk.PorterStemmer() # also lancaster stemmer
 wnl = nltk.WordNetLemmatizer()
 stopWords = stopwords.words("english")
-word_count_threshold = 5
+word_count_threshold = 10
 dataset = 'scdb' # scdb or courtlistener
 outputf = 'out'
 data_dir = ''
@@ -46,7 +46,7 @@ def tokenize_text(line):
         tokens = [w for w in tokens if w not in stopWords]
         tokens = [w for w in tokens if not re.search('[0-9]+', w)]
         tokens = [wnl.lemmatize(t) for t in tokens]
-        tokens = [w for w in tokens if len(w) > 4]
+        tokens = [w for w in tokens if len(w) > 5]
         tokens = [porter.stem(t) for t in tokens]
     except Exception as e:
         print_exc()
@@ -179,18 +179,19 @@ def write_txt(rows, name, path=None):
     outfile.close()
 
 def read_args(argv):
-    global outputf, data_dir, vocabf, dataset
+    global outputf, data_dir, vocabf, dataset, word_count_threshold
     try:
-        opts, args = getopt.getopt(argv,"d:p:o:v:",
-                                   ["dataset=","path=","ofile=","vocabfile="])
+        opts, args = getopt.getopt(argv,"d:p:o:v:t",
+                                   ["dataset=","path=","ofile=","vocabfile=",
+                                    "threshold="])
     except getopt.GetoptError:
         print ('Usage: \n python preprocess_text.py -d <dataset> '
-               '-p <path> -o <outputfile> -v <vocabulary>')
+               '-p <path> -o <outputfile> -v <vocabulary> -t <threshold>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print ('Usage: \n python preprocess_text.py -d <dataset> '
-                   '-p <path> -o <outputfile> -v <vocabulary>')
+                   '-p <path> -o <outputfile> -v <vocabulary> -t <threshold>')
             sys.exit()
         elif opt in ("-d", "--dataset"):
             dataset = arg
@@ -200,6 +201,8 @@ def read_args(argv):
             outputf = arg
         elif opt in ("-v", "--vocabfile"):
             vocabf = arg
+        elif opt in ("-t", "--threshold"):
+            word_count_threshold = int(arg)
 
 
 # fix this.
