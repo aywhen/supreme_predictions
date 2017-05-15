@@ -4,6 +4,8 @@ from datetime import datetime
 
 
 single_prediction = False
+single_set = True # allow for randomly selected test set -> not a date-cutoff based one
+
 
 
 # column names by category
@@ -55,17 +57,26 @@ cutoff_date = datetime(2015, 1, 1) # anything after this date is in test set
 df = pd.read_csv('../data/SCDB_2016_01_justiceCentered_Citation.csv',
                  parse_dates=['dateDecision'])
 df = df[pd.notnull(df.partyWinning)] # only include rows with valid partyWinning
-train = df[df.dateDecision < cutoff_date]
-test = df[df.dateDecision >= cutoff_date]
+if single_set:
+    train = df
 
-trainX = train[id_variables + feature_cols]
-trainY = train[id_variables + label_cols]
-testX = test[id_variables + feature_cols]
-testY = test[id_variables + label_cols]
+    trainX = train[id_variables + feature_cols]
+    trainY = train[id_variables + label_cols]
+    # write to files
+    trainX.to_csv('../data/trainX_justice_full.csv', index=False)
+    trainY.to_csv('../data/trainY_justice_full.csv', index=False)
 
-# write to files
-trainX.to_csv('../data/trainX_justice.csv', index=False)
-trainY.to_csv('../data/trainY_justice.csv', index=False)
-testX.to_csv('../data/testX_justice.csv', index=False)
-testY.to_csv('../data/testY_justice.csv', index=False)
+else:   
+    train = df[df.dateDecision < cutoff_date]
+    test = df[df.dateDecision >= cutoff_date]
+    trainX = train[id_variables + feature_cols]
+    trainY = train[id_variables + label_cols]
+    testX = test[id_variables + feature_cols]
+    testY = test[id_variables + label_cols]
+
+    # write to files
+    trainX.to_csv('../data/trainX_justice.csv', index=False)
+    trainY.to_csv('../data/trainY_justice.csv', index=False)
+    testX.to_csv('../data/testX_justice.csv', index=False)
+    testY.to_csv('../data/testY_justice.csv', index=False)
 
