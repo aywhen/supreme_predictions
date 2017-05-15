@@ -12,12 +12,13 @@ import csv
 from traceback import print_exc
 
 
-chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';', 
-'?', '*', '\\', '\/', '~', '_','|','=','+','^',':','\"','\'','@','-']
+chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';',
+         '?', '*', '\\', '\/', '~', '_','|','=','+','^',':','\"','\'','@','-',
+         '`']
 porter = nltk.PorterStemmer() # also lancaster stemmer
 wnl = nltk.WordNetLemmatizer()
 stopWords = stopwords.words("english")
-word_count_threshold = 2# 5
+word_count_threshold = 5
 dataset = 'scdb' # scdb or courtlistener
 outputf = 'out'
 data_dir = ''
@@ -45,6 +46,7 @@ def tokenize_text(line):
         tokens = [w for w in tokens if w not in stopWords]
         tokens = [w for w in tokens if not re.search('[0-9]+', w)]
         tokens = [wnl.lemmatize(t) for t in tokens]
+        tokens = [w for w in tokens if len(w) > 4]
         tokens = [porter.stem(t) for t in tokens]
     except Exception as e:
         print_exc()
@@ -56,10 +58,12 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
     classes = []
     samples = []
     docs = []
+    num_rows = len(traintxt)
+    increment = max(500, num_rows / 20)
     if train == True:
         words = {}
 
-    for row in traintxt.values:
+    for i, row in enumerate(traintxt.values):
         classes.append('%.0f' % row[-1])
         samples.append(row[0])
         tokens = tokenize_text(row[1])
@@ -75,6 +79,10 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
                 except:
                     words[t] = 1
         docs.append(tokens)
+        if i % increment == 0:
+            print i, '/', num_rows
+        # if i == num_rows / 2:
+        #     return (docs, classes, samples, words)
 
     if train == True:
         return(docs, classes, samples, words)
@@ -213,7 +221,7 @@ def main(argv):
 
     # Write bow file
     prefix = dataset if dataset == 'courtlistener' else 'train'
-    write_csv(bow, dataset + '_%s_bow' % prefix)
+    write_csv(bow, '_%s_bow' % prefix)
 
     # Process test.txt / write bow
     if test:
