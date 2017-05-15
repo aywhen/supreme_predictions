@@ -9,6 +9,7 @@ import pandas as pd
 import codecs
 import numpy
 import csv
+from traceback import print_exc
 
 
 chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';', 
@@ -17,6 +18,7 @@ porter = nltk.PorterStemmer() # also lancaster stemmer
 wnl = nltk.WordNetLemmatizer()
 stopWords = stopwords.words("english")
 word_count_threshold = 2# 5
+dataset = 'scdb' # scdb or courtlistener
 outputf = 'out'
 data_dir = ''
 vocabf = ''
@@ -36,12 +38,17 @@ def tokenize_text(line):
     # remove noisy characters; tokenize
     # convert some punctuation to periods for marking negation
     raw = re.sub('[%s]' % ''.join(chars), ' ', raw)
-    tokens = word_tokenize(raw)
-    tokens = [w for w in tokens if not re.search('\.', w)]
-    tokens = [w.lower() for w in tokens]
-    tokens = [w for w in tokens if w not in stopWords]
-    tokens = [wnl.lemmatize(t) for t in tokens]
-    tokens = [porter.stem(t) for t in tokens]
+    try:
+        tokens = word_tokenize(raw)
+        tokens = [w for w in tokens if not re.search('\.', w)]
+        tokens = [w.lower() for w in tokens]
+        tokens = [w for w in tokens if w not in stopWords]
+        tokens = [w for w in tokens if not re.search('[0-9]+', w)]
+        tokens = [wnl.lemmatize(t) for t in tokens]
+        tokens = [porter.stem(t) for t in tokens]
+    except Exception as e:
+        print_exc()
+        print tokens
     return tokens
 
 def tokenize_corpus(traintxt, train=True, negation=True, n=1):
@@ -118,7 +125,7 @@ def get_vocab(vocabf, traintxt, path=None):
         (docs, classes, samples, words) = tokenize_corpus(traintxt, train=True)
         vocab = wordcount_filter(words, num=word_count_threshold)
         # Write new vocab file
-        vocabf = outputf+"_vocab_"+str(word_count_threshold)+".txt"
+        vocabf = outputf+"_" + dataset + "_vocab_"+str(word_count_threshold)+".txt"
         outfile = codecs.open(path+"/"+vocabf, 'w',"utf-8-sig")
         outfile.write("\n".join(vocab))
         outfile.close()
@@ -131,7 +138,8 @@ def get_vocab(vocabf, traintxt, path=None):
     print ('Vocabulary file:', path+"/"+vocabf)
     return (docs, classes, samples, vocab)
 
-def get_corpus(path=None):
+def get_corpus_scdb(path=None):
+    # get corpus for court-centered.
     path = path or data_dir
     trainX = path+"/trainX_text.csv"
     trainY = path+"/trainY.csv"
@@ -144,6 +152,11 @@ def get_corpus(path=None):
     train = construct_docs(trainX, trainY)
     test = construct_docs(testX, testY)
     return train, test
+
+def get_corpus_courtlistener(path=None):
+    path = path or data_dir
+    train = pd.read_csv(path + '/courtlistener.csv')
+    return train
 
 def write_csv(bow, name, path=None):
     path = path or data_dir
@@ -158,16 +171,21 @@ def write_txt(rows, name, path=None):
     outfile.close()
 
 def read_args(argv):
-    global outputf, data_dir, vocabf
+    global outputf, data_dir, vocabf, dataset
     try:
-        opts, args = getopt.getopt(argv,"p:o:v:",["path=","ofile=","vocabfile="])
+        opts, args = getopt.getopt(argv,"d:p:o:v:",
+                                   ["dataset=","path=","ofile=","vocabfile="])
     except getopt.GetoptError:
-        print ('Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>')
+        print ('Usage: \n python preprocess_text.py -d <dataset> '
+               '-p <path> -o <outputfile> -v <vocabulary>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print ('Usage: \n python preprocess_text.py -p <path> -o <outputfile> -v <vocabulary>')
+            print ('Usage: \n python preprocess_text.py -d <dataset> '
+                   '-p <path> -o <outputfile> -v <vocabulary>')
             sys.exit()
+        elif opt in ("-d", "--dataset"):
+            dataset = arg
         elif opt in ("-p", "--path"):
             data_dir = arg
         elif opt in ("-o", "--ofile"):
@@ -181,7 +199,11 @@ def main(argv):
     start_time = time.time()
     read_args(argv)
 
-    (train, test) = get_corpus()
+    if dataset == 'scdb':
+        (train, test) = get_corpus_scdb()
+    else:
+        train = get_corpus_courtlistener()
+        test = None
     (docs, classes, samples, vocab) = get_vocab(vocabf, train)
 
     # Get bag of words:
@@ -190,17 +212,19 @@ def main(argv):
     print ("Doc with smallest number of words in vocab has:", min(numpy.sum(bow, axis=1)))
 
     # Write bow file
-    write_csv(bow, '_train_bow')
+    prefix = dataset if dataset == 'courtlistener' else 'train'
+    write_csv(bow, dataset + '_%s_bow' % prefix)
 
     # Process test.txt / write bow
-    (docstest, classestest, samplestest) = tokenize_corpus(test, train=False)
-    testbow = find_wordcounts(docstest, vocab)
-    write_csv(testbow, '_test_bow')
+    if test:
+        (docstest, classestest, samplestest) = tokenize_corpus(test, train=False)
+        testbow = find_wordcounts(docstest, vocab)
+        write_csv(testbow, '_test_bow')
+        write_txt(classestest, '_testY')
 
     # Write classes, samples
-    write_txt(classes, '_classes_')
-    write_txt(classestest, '_testY')
-    write_txt(samples, '_samples_class_')
+    write_txt(classes, '_%s_classes_' % dataset)
+    write_txt(samples, '_%s_samples_class_' % dataset)
 
     print ('Output files:', data_dir+"/"+outputf+"*")
 

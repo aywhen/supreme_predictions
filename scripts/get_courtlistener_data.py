@@ -84,20 +84,30 @@ def get_opinions(caseId):
         )
     return opinions
 
-def get_text(scbd_id, justice_name):
-    # deprecated
-    cluster = clusters.find_one({'scdb_id': scdb_id})
-    opinion = opinions.find_one({'resource_uri':
-                                 {'$in': cluster['sub_opinions']},
-                                 'justiceName': justice_name})
-    # improve to concatenate different opinions.
-    if opinion:
-        soup = BeautifulSoup(html)
-        return soup.text
-
-    return ''
-
 # NEW SHIT
+def get_text(scdb_id, justice_name):
+    """
+    Gets text for a given voteId & justiceName (from SCDB)
+    """
+    cluster = clusters.find_one({'scdb_id': scdb_id})
+    if not cluster:
+        return ''
+
+    # improve to concatenate multiple opinions.
+    cursor = opinions.find({'resource_uri':
+                              {'$in': cluster['sub_opinions']},
+                              'justiceName': justice_name})
+    if cursor.count() == 0:
+        return ''
+
+    text = ''
+    for opinion in cursor:
+        html = opinion['html']
+        soup = BeautifulSoup(html)
+        text += soup.text
+
+    return text
+
 def match_authors():
     """
     assigns justiceName field from SCDB dataset to people in the
@@ -144,7 +154,7 @@ def load_all(sub_dir__collection_name=None):
         count = load(os.path.join(path, subdir), db[collection_name])
         print 'Loaded in', count, 'entries for', collection_name
 
-def generate_corpus(outputf):
+def generate_corpus(outputf='courtlistener.csv'):
     """
     Writes to outputfile a csv with the columns:
     voteId, text, vote
@@ -156,11 +166,13 @@ def generate_corpus(outputf):
     - vote is the justice's vote (see codes here:
       http://scdb.wustl.edu/documentation.php?var=vote)
 
-    @param outputf: filename for output file
+    @param outputf (optional): filename for output file.
+    Defaults to courtlistener.csv
     """
     f = open(os.path.join(path, outputf), 'w')
     fieldnames = ['voteId', 'text', 'vote']
     writer = csv.DictWriter(f, fieldnames=fieldnames)
+    writer.writeheader()
     df = pd.read_csv('../data/SCDB_2016_01_justiceCentered_Citation.csv')
     for index, row in df.iterrows():
         scdb_id = row.caseId
@@ -170,9 +182,9 @@ def generate_corpus(outputf):
         vote = row.vote
         if opinion in [2, 3]:
             text = get_text(scdb_id, justice_name)
-        writer.writerow({'voteId': vote_id,
-                         'text': text,
-                         'vote': vote})
+            writer.writerow({'voteId': vote_id,
+                             'text': text,
+                             'vote': vote})
     f.close()
 
 def set_indices():
@@ -191,9 +203,21 @@ def setup_courtlistener():
     match_authors()
 
 def is_first_time():
+    """
+    Tells if this is the first time that the client is running this script.
+    """
     return opinions.count() == 0
 
 def main():
     if is_first_time():
         setup_courtlistener()
-    generate_corpus()
+        generate_corpus()
+    else:
+        print ("Your cherry has been popped. Are you sure you want to generate"
+               "the corpus again?")
+        answer = input('Yes or No?[Y/N]')
+        if answer.lower().contains('y'):
+            generate_corpus()
+
+if __name__ == '__main__':
+    main()
