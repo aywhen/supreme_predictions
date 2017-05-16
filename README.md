@@ -6,6 +6,8 @@
 
 For more notes, see our [wiki](https://github.com/hinthornw/supreme_predictions/wiki).
 
+A pdf copy of our findings is stored [here](/writeup/424_Final_Project.pdf).
+
 Dataset: 
 Harold J. Spaeth, Lee Epstein, Andrew D. Martin, Jeffrey A. Segal, Theodore J. Ruger, and Sara C. Benesh. 2016 Supreme Court Database, Version 2016 Release 01. URL: http://Supremecourtdatabase.org 
 
@@ -156,5 +158,23 @@ And generated features based on clustering methods:
 
 ![minMaj](figures/majMin.png)
 ![biasVec](figures/average_bias_pca.png)
+
+
+
+We then used textual data from [CourtListener](https://www.courtlistener.com) and correlated bags of words with political bias of the individual Justice using there $\chi^2$ values. Below are some word clouds representing our findings.
+
+
+The first two show words that are strongly correlated with a justice being in the majority vote (left) or dissent (right).
+
+![direction](figures/direction_wordcloud_chi2.png)
+![majority](figures/majority_wordcloud_chi2.png)
+
+
+The next two show words strongly correlated with a Justice voting in along a more liberal line (left) or conservative one (right)
+
+
+![conservative](figures/liberal_majority_chi2.png)
+![consMaj](figures/conservative_majority_chi2.png)
+
 
 
