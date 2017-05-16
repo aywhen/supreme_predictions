@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+FILL_VALUE = 0 #-1
+
 def fillMissing(inputcsv, outputcsv):
     
     # read input csv - takes time
@@ -11,6 +13,7 @@ def fillMissing(inputcsv, outputcsv):
     
     # if emplty, replace with 0
     df = df.fillna(value=0)
+
     # # replace negative values with 1
     # num = df._get_numeric_data()
     # num[num < 0] = 1
@@ -20,8 +23,9 @@ def fillMissing(inputcsv, outputcsv):
     df.to_csv(outputcsv, index=False)
     
 # Usage:
-fillMissing('../data/testX_num.csv', '../data/testX_num_output.csv')
-filleddf = pd.read_csv('../data/testX_num_output.csv', low_memory=False)
+if __name__=='__main__':
+    fillMissing('../data/testX_num.csv', '../data/testX_num_output.csv')
+    filleddf = pd.read_csv('../data/testX_num_output.csv', low_memory=False)
 
-fillMissing('../data/trainX_num.csv', '../data/trainX_num_output.csv')
-filleddf = pd.read_csv('../data/trainX_num_output.csv', low_memory=False)
+    fillMissing('../data/trainX_num.csv', '../data/trainX_num_output.csv')
+    filleddf = pd.read_csv('../data/trainX_num_output.csv', low_memory=False)
