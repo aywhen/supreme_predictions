@@ -1,3 +1,5 @@
+# some of these functions should be in a separate helpers.py instead bleeeeh
+
 import numpy as np
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
@@ -30,6 +32,19 @@ def get_data():
     samples = pd.DataFrame(data=voteIds, columns=['voteId'])
     samples = samples.merge(scdb, how='left', on='voteId')
     return (bow, votes, samples, vocab)
+
+def split_train_test(X, Y, train_p=.8):
+    # train_p is the proportion to give to training.
+    full = np.hstack((X, Y.reshape(Y.shape[0], 1)))
+    num_train = int(train_p * full.shape[0])
+    x_cols = X.shape[1]
+    train = full[:num_train]
+    test = full[num_train:]
+    train_x = train[:,:x_cols]
+    train_y = train[:,x_cols:]
+    test_x = test[:,:x_cols]
+    test_y = test[:,x_cols:]
+    return (train_x, train_y.ravel(), test_x, test_y.ravel())
 
 def filter_bow(bow, samples, mask_f):
     bow_df = pd.DataFrame(
@@ -113,13 +128,15 @@ def get_top_words_by_chi2(x, y, vocab, k=100):
                           mask=selector.get_support())
 
 def generate_wordcloud_chi2(data, label='direction', k=100):
+    top = get_top_words_for_label(data, label)
+    generate_wordcloud(top)
+
+def get_top_words_for_label(data, label, k=100):
     bow, votes, samples, vocab = data
     x = np.delete(bow, 0, axis=1)
     y = samples[label].values
     #return x, y, vocab
-    top = get_top_words_by_chi2(x, y, vocab)
-    # return top
-    generate_wordcloud(top)
+    return get_top_words_by_chi2(x, y, vocab, k=k)
 
 def generate_wordclouds_chi2_conservative_liberal(data):
     conservative = get_conservative(data)

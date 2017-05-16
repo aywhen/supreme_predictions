@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn import svm, naive_bayes
 from sklearn.feature_extraction.text import TfidfTransformer
 from time import time
@@ -11,6 +12,22 @@ from sklearn.preprocessing import binarize
 from sklearn.feature_selection import SelectKBest, chi2
 import matplotlib.pyplot as plt
 
+
+SCORE = 'macro' # average kwarg for precision, recall, f1
+#SCORE = 'weighted'
+
+def filter_out_empty(trainX, trainY, testX, testY):
+    print trainX.shape, trainY.shape, testX.shape, testY.shape
+    train = np.hstack((trainX, trainY.reshape(trainY.shape[0], 1)))
+    test = np.hstack((testX, testY.reshape(testY.shape[0], 1)))
+    x_cols = trainX.shape[1]
+    train = train[trainY > 0]
+    trainX = train[:,:x_cols]
+    trainY = train[:,x_cols:]
+    test = test[testY > 0]
+    testX = test[:,:x_cols]
+    testY = test[:,x_cols:]
+    return trainX, trainY.ravel(), testX, testY.ravel()
 
 class TrialRunner():
     models = {}
@@ -36,13 +53,13 @@ class TrialRunner():
         self.k = k
         self.tfidf = tfidf
         print 'preprocessing train...'
-        trainX = self.preprocess(trainX)
+        trainX = self.preprocess(np.array(trainX, dtype=float))
         print 'preprocessing test...'
-        testX = self.preprocess(testX)
+        testX = self.preprocess(np.array(testX, dtype=float))
         self.trainX = trainX
-        self.trainY = trainY
+        self.trainY = np.array(trainY, dtype=float)
         self.testX = testX
-        self.testY = testY
+        self.testY = np.array(testY, dtype=float)
         if k is not None:
             print 'selecting features...'
             self.select_features()
@@ -59,6 +76,7 @@ class TrialRunner():
         self.testX = selector.transform(self.testX)
 
     def preprocess(self, X):
+        print X.shape, X.dtype
         if self.tfidf:
             transformer = TfidfTransformer(smooth_idf=False)
             X2 = transformer.fit_transform(X).toarray()
@@ -85,13 +103,21 @@ class TrialRunner():
 
     def print_result(self, method, method_name):
         print 'Train: precision=%.2f recall=%.2f f1=%.2f' % (
-            precision_score(self.trainY, self.train_results[method_name]),
-            recall_score(self.trainY, self.train_results[method_name]),
-            f1_score(self.trainY, self.train_results[method_name]))
+            precision_score(self.trainY, self.train_results[method_name],
+                            average=SCORE),
+            recall_score(self.trainY, self.train_results[method_name],
+                         average=SCORE),
+            f1_score(self.trainY, self.train_results[method_name],
+                     average=SCORE)
+        )
         print 'Test: precision=%.2f recall=%.2f f1=%.2f' % (
-            precision_score(self.testY, self.test_results[method_name]),
-            recall_score(self.testY, self.test_results[method_name]),
-            f1_score(self.testY, self.test_results[method_name]))
+            precision_score(self.testY, self.test_results[method_name],
+                            average=SCORE),
+            recall_score(self.testY, self.test_results[method_name],
+                         average=SCORE),
+            f1_score(self.testY, self.test_results[method_name],
+                     average=SCORE)
+        )
         print '\n'
 
     def run(self):
@@ -109,13 +135,14 @@ class TrialRunner():
                    % (fit - start, time()-fit, time()-start))
             self.print_result(method, method_name)
 
-    def plot_roc(self):
+    def plot_roc(self, pos_label=None):
         fpr = dict()
         tpr = dict()
         roc_auc = dict()
 
         for i, model in self.models.iteritems():
-            fpr[i], tpr[i], _ = roc_curve(self.testY, self.test_results[i])
+            fpr[i], tpr[i], _ = roc_curve(self.testY, self.test_results[i],
+                                          pos_label=pos_label)
             roc_auc[i] = auc(fpr[i], tpr[i])
         plt.figure()
         lw = 2
@@ -152,13 +179,57 @@ def get_accuracy(Y, Z):
 def main(trainX_name, trainY_name, testX_name, testY_name, tfidf=True, k=None):
     # load training and test sets
     X = np.loadtxt(trainX_name, delimiter=',')
-    Y = np.loadtxt(trainY_name)
+    #Y = np.loadtxt(trainY_name)
     testX = np.loadtxt(testX_name, delimiter=",")
-    testY = np.loadtxt(testY_name)
-    runner = TrialRunner(X, Y, testX, testY, tfidf=tfidf, k=k)
-    runner.run()
-    # runner.plot_roc()
-    runner.cross_val()
+    #testY = np.loadtxt(testY_name)
+
+    # copied from wordclouds.py
+    voteIds = np.loadtxt('../data/out_courtlistener_all_samples.txt',
+                         dtype=str)
+    voteIds = voteIds.reshape(voteIds.shape[0], 1)
+    scdb = pd.read_csv('../data/SCDB_2016_01_justiceCentered_Citation.csv')
+    scdb = scdb.fillna(value=-1)
+    samples = pd.DataFrame(data=voteIds, columns=['voteId'])
+    samples = samples.merge(scdb, how='left', on='voteId')
+    train_len = X.shape[0]
+
+    pos_label = 2 # liberal, or majority
+    for label in ['direction', 'majority']: # these are binary, vote is not.
+        print 'label:', label
+        Y = np.array(samples[label].values, dtype=float)
+        trainY = Y[:train_len]
+        testY = Y[train_len:]
+        this_X, trainY, this_testX, testY = filter_out_empty(X, trainY, testX, testY)
+        runner = TrialRunner(this_X, trainY, this_testX, testY, tfidf=tfidf, k=k)
+        runner.run()
+        runner.plot_roc(pos_label=pos_label)
+        # runner.cross_val()
+
+def run_by_direction(tfidf=True, k=None):
+    # conservative/liberal
+    import wordclouds as wc
+    data = wc.get_data()
+    conservative = wc.get_conservative(data)
+    liberal = wc.get_liberal(data)
+    pos_label = 2 # majority
+    for dataset in [conservative, liberal]:
+        if dataset == conservative:
+            print 'conservative'
+        else:
+            print 'liberal'
+        bow, votes, samples, vocab = dataset
+        X = np.delete(bow, 0, axis=1)
+        Y = np.array(samples.majority.values, dtype=float)
+        trainX, trainY, testX, testY = wc.split_train_test(X, Y)
+        runner = TrialRunner(trainX, trainY, testX, testY, tfidf=tfidf, k=k)
+        runner.run()
+        runner.plot_roc(pos_label=pos_label)
+
+def find_author(tfidf=True, k=None):
+    # import
+    # run classifier to see how well we can predict the author
+    pass
 
 if __name__=='__main__':
-    main("../data/out_courtlistener_train_bow5.csv", "../data/out_courtlistener_train_classes_5.txt", "../data/out_courtlistener_test_bow5.csv", "../data/out_courtlistener_test_classes_5.txt")
+    main("../data/out_courtlistener_bow5362_1000.csv", "../data/out_courtlistener_classes5362_1000.txt", "../data/out_courtlistener_test_bow5362_1000.csv", "../data/out_courtlistener_testY5362_1000.txt", k=100)
+    run_by_direction(k=100)

@@ -12,7 +12,8 @@ def fillMissing(inputcsv, outputcsv):
     
     
     # if emplty, replace with 0
-    df = df.fillna(value=FILL_VALUE)
+    df = df.fillna(value=0)
+
     # # replace negative values with 1
     # num = df._get_numeric_data()
     # num[num < 0] = 1
