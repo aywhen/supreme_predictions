@@ -20,8 +20,9 @@ def fillMissing(inputcsv, outputcsv):
     df.to_csv(outputcsv, index=False)
     
 # Usage:
-fillMissing('../data/testX_num.csv', '../data/testX_num_output.csv')
-filleddf = pd.read_csv('../data/testX_num_output.csv', low_memory=False)
+if __name__=='__main__':
+    fillMissing('../data/testX_num.csv', '../data/testX_num_output.csv')
+    filleddf = pd.read_csv('../data/testX_num_output.csv', low_memory=False)
 
-fillMissing('../data/trainX_num.csv', '../data/trainX_num_output.csv')
-filleddf = pd.read_csv('../data/trainX_num_output.csv', low_memory=False)
+    fillMissing('../data/trainX_num.csv', '../data/trainX_num_output.csv')
+    filleddf = pd.read_csv('../data/trainX_num_output.csv', low_memory=False)
