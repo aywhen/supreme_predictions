@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+FILL_VALUE = 0 #-1
+
 def fillMissing(inputcsv, outputcsv):
     
     # read input csv - takes time
@@ -10,7 +12,7 @@ def fillMissing(inputcsv, outputcsv):
     
     
     # if emplty, replace with 0
-    df = df.fillna(value=-1)
+    df = df.fillna(value=FILL_VALUE)
     # # replace negative values with 1
     # num = df._get_numeric_data()
     # num[num < 0] = 1
