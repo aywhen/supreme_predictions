@@ -52,13 +52,15 @@ trainX_text = train[feature_cols].select_dtypes(['object'])
 trainX_text = trainX_text.assign(voteId=train.voteId)
 trainX_numeric = train[feature_cols].select_dtypes(['number'])
 trainX_numeric.assign(voteId=train.voteId)
-trainY = train[id_cols + label_cols]
+# trainY = train[id_cols + label_cols]
+trainY = train[label_cols]
 testX = test[id_cols + feature_cols]
 testX_text = test[feature_cols].select_dtypes(['object'])
 testX_text = testX_text.assign(voteId=test.voteId)
 testX_numeric = test[feature_cols].select_dtypes(['number'])
 testX_numeric.assign(voteId=test.voteId)
-testY = test[id_cols + label_cols]
+# testY = test[id_cols + label_cols]
+testY = test[label_cols]
 
 # write to files
 trainX.to_csv('../data/trainX.csv', index=False)
