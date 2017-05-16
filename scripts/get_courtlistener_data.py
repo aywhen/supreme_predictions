@@ -187,6 +187,12 @@ def generate_corpus(outputf='courtlistener.csv'):
                              'vote': vote})
     f.close()
 
+def filter_out_empty(fname):
+    # filters out rows with empty text
+    df = pd.read_csv(os.path.join(path, fname))
+    df = df[df.text.notnull()]
+    df.to_csv(os.path.join(path, 'out_' + fname), index=False)
+
 def set_indices():
     # ensure uniqueness
     people.create_index('resource_uri', unique=True)

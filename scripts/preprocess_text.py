@@ -18,11 +18,12 @@ chars = ['{','}','#','%','&','\(','\)','\[','\]','<','>',',', '!', ';',
 porter = nltk.PorterStemmer() # also lancaster stemmer
 wnl = nltk.WordNetLemmatizer()
 stopWords = stopwords.words("english")
-word_count_threshold = 10
+word_count_threshold = 50
 dataset = 'scdb' # scdb or courtlistener
 outputf = 'out'
-data_dir = ''
+data_dir = '../data'
 vocabf = ''
+sample_size = None
 
 
 def stem(word):
@@ -31,6 +32,7 @@ def stem(word):
    return stem
 
 def tokenize_text(line):
+    # print 'line', line[:5]
     if type(line) == float:
         raw = ''
     else:
@@ -41,10 +43,10 @@ def tokenize_text(line):
     raw = re.sub('[%s]' % ''.join(chars), ' ', raw)
     try:
         tokens = word_tokenize(raw)
-        tokens = [w for w in tokens if not re.search('\.', w)]
+        tokens = [w for w in tokens if
+                  not re.search('\.', w) and not re.search('[0-9]+', w)]
         tokens = [w.lower() for w in tokens]
         tokens = [w for w in tokens if w not in stopWords]
-        tokens = [w for w in tokens if not re.search('[0-9]+', w)]
         tokens = [wnl.lemmatize(t) for t in tokens]
         tokens = [w for w in tokens if len(w) > 5]
         tokens = [porter.stem(t) for t in tokens]
@@ -53,20 +55,23 @@ def tokenize_text(line):
         print tokens
     return tokens
 
-def tokenize_corpus(traintxt, train=True, negation=True, n=1):
+def tokenize_corpus(traintxt, train=True, negation=True, n=1, max_docs=None):
     # rewrite so that instead of following path it takes dataframe?
     classes = []
     samples = []
     docs = []
-    num_rows = len(traintxt)
-    increment = max(500, num_rows / 20)
+    num_rows = max_docs or len(traintxt)
+    increment = max(50, num_rows / 20)
+
+    # print 'num_rows', num_rows
     if train == True:
         words = {}
 
-    for i, row in enumerate(traintxt.values):
+    for i, row in enumerate(traintxt):
         classes.append('%.0f' % row[-1])
         samples.append(row[0])
         tokens = tokenize_text(row[1])
+        # print i, len(tokens)
 
         if n > 1:
             ngram_tokens = ngrams(tokens, n)
@@ -81,6 +86,8 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
         docs.append(tokens)
         if i % increment == 0:
             print i, '/', num_rows
+        if max_docs and i == max_docs:
+           break
         # if i == num_rows / 2:
         #     return (docs, classes, samples, words)
 
@@ -90,11 +97,13 @@ def tokenize_corpus(traintxt, train=True, negation=True, n=1):
         return(docs, classes, samples)
 
 def wordcount_filter(words, num=5):
+    print 'Vocab length', len(words)
+    print 'Word count threshold', num
     keepset = []
     for k in words.keys():
         if(words[k] > num):
             keepset.append(k)
-    print ("Vocab length:", len(keepset))
+    print ("Vocab length after filter:", len(keepset))
     return(sorted(set(keepset)))
 
 
@@ -131,9 +140,11 @@ def get_vocab(vocabf, traintxt, path=None):
     # Tokenize training data (if training vocab doesn't already exist):
     if vocabf == '':
         (docs, classes, samples, words) = tokenize_corpus(traintxt, train=True)
+        print 'docs', len(docs), 'classes', len(classes), 'samples', len(samples), 'words', len(words)
         vocab = wordcount_filter(words, num=word_count_threshold)
         # Write new vocab file
-        vocabf = outputf+"_" + dataset + "_vocab_"+str(word_count_threshold)+".txt"
+        #write_txt(vocab, '_vocab', path=path)
+        vocabf = outputf+"_" + dataset + "_vocab_"+str(sample_size) + '_' + str(word_count_threshold)+".txt"
         outfile = codecs.open(path+"/"+vocabf, 'w',"utf-8-sig")
         outfile.write("\n".join(vocab))
         outfile.close()
@@ -161,21 +172,30 @@ def get_corpus_scdb(path=None):
     test = construct_docs(testX, testY)
     return train, test
 
-def get_corpus_courtlistener(path=None):
+def get_corpus_courtlistener(path=None, sample_size=None):
     path = path or data_dir
-    train = pd.read_csv(path + '/courtlistener.csv')
-    return train
+    full = pd.read_csv(path + '/out_courtlistener.csv')
+    if sample_size:
+       full = full.values[:sample_size]
+    else:
+       full = full.values
+    corpus_size = len(full)
+    n_train = int(0.8 * corpus_size)
+    train = full[:n_train]
+    test = full[n_train:]
+    print 'corpus_size', corpus_size, 'train', len(train), 'test', len(test)
+    return train, test
 
 def write_csv(bow, name, path=None):
     path = path or data_dir
-    with open(path+"/"+outputf+name+str(word_count_threshold)+".csv", "wb") as f:
+    with open(path+"/"+outputf+'_' + dataset + name + str(sample_size) + '_' + str(word_count_threshold)+".csv", "wb") as f:
         writer = csv.writer(f)
         writer.writerows(bow)
 
 def write_txt(rows, name, path=None):
     path = path or data_dir
-    outfile= open(path+"/"+outputf+name+str(word_count_threshold)+".txt", 'w')
-    outfile.write("\n".join(rows))
+    outfile= open(path+"/"+outputf+'_' + dataset + name+str(sample_size) + '_' + str(word_count_threshold)+".txt", 'w')
+    outfile.write("\n".join([str(row) for row in rows]))
     outfile.close()
 
 def read_args(argv):
@@ -201,20 +221,25 @@ def read_args(argv):
             outputf = arg
         elif opt in ("-v", "--vocabfile"):
             vocabf = arg
-        elif opt in ("-t", "--threshold"):
-            word_count_threshold = int(arg)
+        #elif opt in ("-t", "--threshold"):
+        #    print arg
+        #    word_count_threshold = int(arg)
 
 
-# fix this.
-def main(argv):
+def main(argv, threshold, sample_size_=None):
     start_time = time.time()
+    global word_count_threshold, sample_size
+    word_count_threshold = threshold
+    sample_size = sample_size_
+    # make this getting of variables nicer this is all gross and stuff
     read_args(argv)
 
     if dataset == 'scdb':
         (train, test) = get_corpus_scdb()
     else:
-        train = get_corpus_courtlistener()
-        test = None
+        (train, test) = get_corpus_courtlistener(sample_size=sample_size)
+    if sample_size is None:
+       sample_size = len(train) + len(test)
     (docs, classes, samples, vocab) = get_vocab(vocabf, train)
 
     # Get bag of words:
@@ -223,19 +248,19 @@ def main(argv):
     print ("Doc with smallest number of words in vocab has:", min(numpy.sum(bow, axis=1)))
 
     # Write bow file
-    prefix = dataset if dataset == 'courtlistener' else 'train'
-    write_csv(bow, '_%s_bow' % prefix)
+    write_csv(bow, '_bow')
 
     # Process test.txt / write bow
-    if test:
+    if test is not None:
         (docstest, classestest, samplestest) = tokenize_corpus(test, train=False)
         testbow = find_wordcounts(docstest, vocab)
         write_csv(testbow, '_test_bow')
         write_txt(classestest, '_testY')
+        write_txt(samplestest, '_test_samples')
 
     # Write classes, samples
-    write_txt(classes, '_%s_classes_' % dataset)
-    write_txt(samples, '_%s_samples_class_' % dataset)
+    write_txt(classes, '_classes')
+    write_txt(samples, '_samples_class')
 
     print ('Output files:', data_dir+"/"+outputf+"*")
 
@@ -243,4 +268,4 @@ def main(argv):
     print ('Runtime:', str(time.time() - start_time))
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv[1:], 1000, None)
